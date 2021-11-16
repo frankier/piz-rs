@@ -58,7 +58,7 @@ pub struct FileMetadata<'a> {
     /// The ISO 8601 combined date and time the file was last modified
     pub last_modified: NaiveDateTime,
     /// The offset to the local file header in the archive
-    pub(crate) header_offset: usize,
+    pub header_offset: usize,
     // TODO: Add other fields the user might want to know about:
     // time, etc.
 }
@@ -82,7 +82,7 @@ pub struct FileMetadataOwned {
     /// The ISO 8601 combined date and time the file was last modified
     pub last_modified: NaiveDateTime,
     /// The offset to the local file header in the archive
-    pub(crate) header_offset: usize,
+    pub header_offset: usize,
     // TODO: Add other fields the user might want to know about:
     // time, etc.
 }
@@ -135,7 +135,7 @@ impl FileMetadataOwned {
 /// A ZIP archive to be read
 pub struct ZipArchive<'a> {
     /// The contents of the ZIP archive, as a byte slice.
-    mapping: &'a [u8],
+    pub mapping: &'a [u8],
     /// A list of entries from the ZIP's central directory
     entries: Vec<FileMetadata<'a>>,
 }
@@ -326,6 +326,24 @@ impl<'a> ZipArchive<'a> {
             io::Cursor::new(&file_slice[0..metadata.compressed_size]),
         )
     }
+}
+
+pub fn read_direct<'a>(
+    mapping: &'a [u8],
+    header_offset: usize,
+    crc32: u32,
+    compression_method: CompressionMethod,
+    compressed_size: usize
+) -> ZipResult<Box<dyn io::Read + Send + 'a>> {
+    let mut file_slice = &mapping[header_offset..];
+    let local_header = spec::LocalFileHeader::parse_and_consume(&mut file_slice)?;
+    trace!("{:?}", local_header);
+
+    make_reader(
+        compression_method,
+        crc32,
+        io::Cursor::new(&file_slice[0..compressed_size]),
+    )
 }
 
 /// Returns a boxed read trait for a compressed file,
